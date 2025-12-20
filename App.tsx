@@ -74,6 +74,26 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      setState(prev => ({ ...prev, originalImage: base64, step: 'ANALYZING', error: null }));
+      
+      try {
+        const analysis = await geminiService.analyzeFurniture(base64);
+        setState(prev => ({ ...prev, analysis, step: 'CUSTOMIZE' }));
+      } catch (err: any) {
+        console.error("Analysis error:", err);
+        setState(prev => ({ ...prev, error: `识别失败: ${err.message || "请检查网络或API Key"}`, step: 'HOME' }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Update image handling logic for new uploads
   const handleSwatchImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
