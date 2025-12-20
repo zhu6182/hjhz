@@ -156,6 +156,68 @@ const App: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleShare = async () => {
+    if (!state.editedImage) return;
+
+    try {
+      // 尝试转换 base64/url 为 Blob 以便分享文件
+      const response = await fetch(state.editedImage);
+      const blob = await response.blob();
+      const file = new File([blob], `design-${Date.now()}.png`, { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: '我的好家改造方案',
+          text: `看看这个 ${state.selectedColor?.name} 的效果怎么样？`,
+          files: [file]
+        });
+      } else {
+        // 降级：复制链接或提示
+        await navigator.clipboard.writeText(window.location.href);
+        alert('链接已复制，快去分享给朋友吧！');
+      }
+    } catch (error) {
+      console.error("Share failed:", error);
+      // 如果文件分享失败，尝试只分享文本
+      if (navigator.share) {
+        navigator.share({
+          title: '我的好家改造方案',
+          text: '我刚刚用 AI 设计了新家，快来看看！',
+          url: window.location.href
+        }).catch(console.error);
+      } else {
+        alert('您的浏览器暂不支持直接分享，请截图发送。');
+      }
+    }
+  };
+
+  const handleDownload = async () => {
+    if (!state.editedImage) return;
+    
+    try {
+      const response = await fetch(state.editedImage);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `好家改造-${state.selectedColor?.name || 'design'}-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download failed:", error);
+      // 降级：直接打开图片让用户长按保存
+      const win = window.open();
+      if (win) {
+        win.document.write(`<img src="${state.editedImage}" style="width:100%"/>`);
+        win.document.title = "长按保存图片";
+      } else {
+        alert('下载失败，请长按图片保存');
+      }
+    }
+  };
   const handleSaveColor = async () => {
     if (!newColor.name || !newColor.hex) return;
     
@@ -753,17 +815,15 @@ const App: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <button className="py-4 bg-white border border-slate-100 text-slate-800 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm">
+            <button 
+              onClick={handleShare}
+              className="py-4 bg-white border border-slate-100 text-slate-800 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+            >
               <Share2 size={18} />
               分享方案
             </button>
             <button 
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = state.editedImage!;
-                link.download = `好家改造-${state.selectedColor?.name}.png`;
-                link.click();
-              }}
+              onClick={handleDownload}
               className="py-4 bg-indigo-50 text-indigo-600 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all"
             >
               <Download size={18} />
