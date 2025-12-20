@@ -6,7 +6,10 @@ export class GeminiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // 允许 API Key 为空，避免前端初始化直接崩溃
+    // 如果没有 Key，将在实际调用 API 时报错，或者使用 Mock 数据
+    const apiKey = import.meta.env.GEMINI_API_KEY || 'PLACEHOLDER_KEY';
+    this.ai = new GoogleGenAI({ apiKey });
   }
 
   async analyzeFurniture(base64Image: string): Promise<FurnitureAnalysis> {
