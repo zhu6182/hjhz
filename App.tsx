@@ -298,10 +298,17 @@ const App: React.FC = () => {
               <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
             </label>
             
-            <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-slate-200">
+            <label className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 active:scale-95 transition-all shadow-xl shadow-slate-200 cursor-pointer">
               <Camera size={20} />
               现场拍摄
-            </button>
+              <input 
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                capture="environment"
+                onChange={handleFileUpload} 
+              />
+            </label>
           </div>
 
           <div className="mt-12 mb-8">
