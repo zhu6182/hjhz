@@ -8,7 +8,8 @@ export class GeminiService {
   constructor() {
     // 允许 API Key 为空，避免前端初始化直接崩溃
     // 如果没有 Key，将在实际调用 API 时报错，或者使用 Mock 数据
-    const apiKey = import.meta.env.GEMINI_API_KEY || 'PLACEHOLDER_KEY';
+    // 注意：Vite 要求环境变量必须以 VITE_ 开头才能在客户端访问
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || 'PLACEHOLDER_KEY';
     this.ai = new GoogleGenAI({ apiKey });
   }
 
