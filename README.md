@@ -1,20 +1,21 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 好家改造 (Furniture Revamp AI)
 
-# Run and deploy your AI Studio app
+基于 Google Gemini AI 的家具改色与材质替换应用。上传家具照片，一键预览 2025 流行质感（木纹、金属、大理石等）。
 
-This contains everything you need to run your app locally.
+## 功能特点
+- 📸 **智能识别**：自动分析家具类型和当前材质
+- 🎨 **AI 改色**：利用 Gemini 强大的多模态能力进行精准重绘
+- ☁️ **云端同步**：支持 Supabase 云数据库，多端同步色卡数据
+- 📱 **响应式设计**：完美适配移动端和桌面端
 
-View your app in AI Studio: https://ai.studio/apps/drive/1FRAd1vy0W_PCVGKID6BTOzjiayl81tu2
+## 技术栈
+- React + Vite + TypeScript
+- Tailwind CSS
+- Google Gemini API
+- Supabase (PostgreSQL + Storage)
 
-## Run Locally
-
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 本地开发
+1. 克隆项目
+2. `npm install`
+3. 配置 `.env.local`
+4. `npm run dev`
