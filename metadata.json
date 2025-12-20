@@ -1,0 +1,8 @@
+
+{
+  "name": "好家改造",
+  "description": "上传家具照片并立即在不同的专业色卡中预览，同时保留纹理、光影和环境。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
