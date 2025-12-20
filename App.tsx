@@ -74,6 +74,10 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
+  const filteredPalettes = useMemo(() => {
+    return state.palettes.filter(p => p.category === activeCategory);
+  }, [state.palettes, activeCategory]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
