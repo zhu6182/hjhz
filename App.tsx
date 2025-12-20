@@ -98,6 +98,43 @@ const App: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleGenerate = async () => {
+    if (!state.originalImage || !state.selectedColor || !state.analysis) return;
+
+    setState(prev => ({ ...prev, step: 'GENERATING' }));
+    try {
+      const resultImage = await geminiService.editFurnitureColor(
+        state.originalImage,
+        state.analysis.type,
+        `${state.selectedColor.category} - ${state.selectedColor.name}`,
+        state.selectedColor.hex
+      );
+      
+      const newProject: ProjectRecord = {
+        id: Date.now().toString(),
+        date: new Date().toLocaleDateString(),
+        original: state.originalImage,
+        result: resultImage,
+        furnitureType: state.analysis.type,
+        colorName: state.selectedColor.name,
+      };
+
+      setState(prev => ({ 
+        ...prev, 
+        editedImage: resultImage, 
+        step: 'RESULT',
+        history: [newProject, ...prev.history] 
+      }));
+    } catch (err: any) {
+      console.error("Generate error:", err);
+      setState(prev => ({ 
+        ...prev, 
+        error: `生成失败: ${err.message || "请检查网络或API Key"}`, 
+        step: 'CUSTOMIZE' 
+      }));
+    }
+  };
+
   // Update image handling logic for new uploads
   const handleSwatchImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
