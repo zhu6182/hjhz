@@ -82,92 +82,64 @@ export class GeminiService {
     }
   }
 
-  async editFurnitureColor(
-    base64Image: string,
-    furnitureType: string,
-    colorAndTexture: string,
-    hex: string
-  ): Promise<string> {
-    try {
-      console.log('Starting Aliyun Wanx generation...');
-      
-      // A. 先把 Base64 上传到 Supabase 获取 URL
-      // 将 base64 转为 File 对象
-      const res = await fetch(base64Image);
-      const blob = await res.blob();
-      const file = new File([blob], "temp_upload.jpg", { type: "image/jpeg" });
-      
-      const uploadedUrl = await backendService.uploadTexture(file);
-      if (!uploadedUrl) {
-        throw new Error("Failed to upload temp image to Supabase");
-      }
-      console.log('Image uploaded to Supabase:', uploadedUrl);
+  // 2. 前端 Canvas 改色 (替代 AI 生成，保证结构不变)
+  async editFurnitureColor(base64Image: string, furnitureType: string, targetColor: string, hexCode: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            reject(new Error("Canvas context not available"));
+            return;
+          }
 
-      // B. 提交任务给 Vercel Function (转发给阿里)
-      // 使用更具体的 Prompt
-      const stylePrompt = `${colorAndTexture} texture, ${furnitureType}, high quality, realistic photo, 8k resolution`;
-      
-      const submitRes = await fetch('/api/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'submit',
-          image_url: uploadedUrl,
-          prompt: stylePrompt
-        })
-      });
+          // 1. 绘制原图
+          ctx.drawImage(img, 0, 0);
 
-      const submitData = await submitRes.json();
-      if (!submitRes.ok || !submitData.output || !submitData.output.task_id) {
-        throw new Error(submitData.message || 'Failed to submit task to Aliyun');
-      }
+          // 2. 混合模式改色
+          // 使用 'multiply' (正片叠底) 或 'color' 模式
+          // 'multiply' 适合保留阴影，'color' 适合保留明度
+          // 我们这里使用混合策略：先叠一层颜色
+          
+          ctx.globalCompositeOperation = 'multiply'; // 正片叠底，保留纹理和阴影
+          ctx.fillStyle = hexCode;
+          ctx.globalAlpha = 0.6; // 透明度，避免颜色太死
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const taskId = submitData.output.task_id;
-      console.log('Task submitted, ID:', taskId);
+          // 3. 再叠一层 'overlay' 增强质感 (可选)
+          ctx.globalCompositeOperation = 'overlay';
+          ctx.fillStyle = hexCode;
+          ctx.globalAlpha = 0.2;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // C. 轮询任务状态
-      return await this.pollTaskStatus(taskId);
+          // 4. 重置混合模式
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1.0;
 
-    } catch (error) {
-      console.error("Error generating image with Aliyun:", error);
-      // 降级：如果出错，返回原图，避免前端白屏
-      return base64Image;
-    }
-  }
-
-  // 轮询辅助函数
-  private async pollTaskStatus(taskId: string): Promise<string> {
-    const maxRetries = 30; // 最多轮询 30 次 (约 60秒)
-    const interval = 2000; // 2秒一次
-
-    for (let i = 0; i < maxRetries; i++) {
-      await new Promise(resolve => setTimeout(resolve, interval));
-
-      const res = await fetch('/api/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'check',
-          task_id: taskId
-        })
-      });
-
-      const data = await res.json();
-      
-      if (data.output && data.output.task_status === 'SUCCEEDED') {
-        if (data.output.results && data.output.results.length > 0) {
-          // 成功！返回生成的图片 URL
-          return data.output.results[0].url; 
+          // 导出结果
+          const resultBase64 = canvas.toDataURL('image/jpeg', 0.9);
+          resolve(resultBase64);
+        } catch (err) {
+          console.error("Canvas processing error:", err);
+          resolve(base64Image); // 出错返回原图
         }
-      } else if (data.output && data.output.task_status === 'FAILED') {
-        throw new Error('Aliyun task failed: ' + data.output.message);
-      }
-      
-      console.log(`Polling task ${taskId}: ${data.output?.task_status}...`);
-    }
-
-    throw new Error('Task timed out');
+      };
+      img.onerror = (err) => {
+        console.error("Image load error:", err);
+        resolve(base64Image);
+      };
+      img.src = base64Image;
+    });
   }
+
+  // 轮询辅助函数 (不再需要)
+  // private async pollTaskStatus(taskId: string): Promise<string> { ... }
 }
 
 export const geminiService = new GeminiService();
