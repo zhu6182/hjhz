@@ -30,18 +30,16 @@ export default async function handler(req, res) {
 
       console.log('Submitting task to Aliyun:', { image_url, prompt });
 
-      // 使用 wanx-v1 (图像生成) 的变体，或者 wanx-style-repaint-v1
-      // 这里我们尝试回退到 wanx-background-generation-v2 或者 wanx-v1 的图生图模式（如果支持）
-      // 官方文档推荐 wanx-style-repaint-v1 用于改色/改材质
-      
+      // 优化：使用更强的 Prompt 约束，并尝试调整参数以获得更写实的效果
       const body = {
         model: 'wanx-style-repaint-v1',
         input: {
           image_url: image_url,
-          style_index: 0 
+          style_index: 0 // 0: 复刻原图结构
         },
         parameters: {
-          style_prompt: prompt,
+          // 强化写实风格，强调材质替换而非风格转换
+          style_prompt: `${prompt}, photorealistic, detailed texture, 8k resolution, interior design photography, keep original structure`,
           size: '1024*1024',
           n: 1
         }
