@@ -87,23 +87,28 @@ export class GeminiService {
     try {
       console.log('Calling Gemini for image editing...');
       
-      const model = this.ai.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-      
-      const prompt = `Edit this image. Change the color of the ${furnitureType} to ${targetColor} (Hex: ${hexCode}). 
-      Keep the texture, lighting, and shadows exactly the same. 
-      Output the result as a realistic photo.`;
-
-      const result = await model.generateContent([prompt, {
-        inlineData: {
-          data: base64Image.split(',')[1],
-          mimeType: "image/jpeg"
+      // 修正：使用与 analyzeFurniture 一致的调用方式
+      const response = await this.ai.models.generateContent({
+        model: "gemini-2.0-flash-exp",
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                data: base64Image.split(',')[1],
+                mimeType: 'image/png',
+              },
+            },
+            {
+              text: `Edit this image. Change the color of the ${furnitureType} to ${targetColor} (Hex: ${hexCode}). 
+              Keep the texture, lighting, and shadows exactly the same. 
+              Output the result as a realistic photo.`,
+            },
+          ],
         }
-      }]);
+      });
 
-      const response = await result.response;
       // 目前 Gemini API (非 Imagen) 通常不直接返回图片二进制流
       // 这里我们尝试检查是否有 image parts，如果没有，则降级返回原图
-      // 这是一个占位符逻辑，等待未来 Gemini API 升级支持直接图生图
       
       console.log("Gemini response text:", response.text());
       
