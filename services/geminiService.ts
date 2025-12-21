@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { FurnitureAnalysis } from "../types";
+import { backendService } from './backendService';
 
 export class GeminiService {
   private ai: GoogleGenAI;
@@ -88,49 +89,84 @@ export class GeminiService {
     hex: string
   ): Promise<string> {
     try {
-      // 使用 gemini-2.0-flash-exp 模型，它支持多模态输入和生成
-      // 注意：Imagen 3 (imagen-3.0-generate-001) 可能需要特殊权限，如果 404 则降级处理
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                data: base64Image.split(',')[1],
-                mimeType: 'image/png',
-              },
-            },
-            {
-              text: `Professional Interior Re-coloring Task:
-            Re-color the primary ${furnitureType} in this image to apply the following product finish: "${colorAndTexture}" (Target Hex: ${hex}).
-            
-            STRICT CONSTRAINTS:
-            1. ONLY re-color the body of the ${furnitureType}.
-            2. If the series is "木纹", apply realistic wood grain texture.
-            3. If the series is "大理石纹", apply realistic marble veins.
-            4. If the series is "金属", apply a subtle metallic sheen with reflections.
-            5. If the series is "肤感", apply a smooth, non-reflective ultra-matte finish.
-            6. KEEP EVERYTHING ELSE UNCHANGED: The floor, walls, lighting, soft decorations (pillows, lamps, plants), and room layout must remain EXACTLY as they are in the original photo.
-            7. Ensure high physical accuracy in how the new material interacts with the existing room lighting.`,
-            },
-          ],
-        },
+      console.log('Starting Aliyun Wanx generation...');
+      
+      // A. 先把 Base64 上传到 Supabase 获取 URL
+      // 将 base64 转为 File 对象
+      const res = await fetch(base64Image);
+      const blob = await res.blob();
+      const file = new File([blob], "temp_upload.jpg", { type: "image/jpeg" });
+      
+      const uploadedUrl = await backendService.uploadTexture(file);
+      if (!uploadedUrl) {
+        throw new Error("Failed to upload temp image to Supabase");
+      }
+      console.log('Image uploaded to Supabase:', uploadedUrl);
+
+      // B. 提交任务给 Vercel Function (转发给阿里)
+      // 使用更具体的 Prompt
+      const stylePrompt = `${colorAndTexture} texture, ${furnitureType}, high quality, realistic photo, 8k resolution`;
+      
+      const submitRes = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'submit',
+          image_url: uploadedUrl,
+          prompt: stylePrompt
+        })
       });
 
-      for (const part of response.candidates?.[0]?.content?.parts || []) {
-        if (part.inlineData) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
+      const submitData = await submitRes.json();
+      if (!submitRes.ok || !submitData.output || !submitData.output.task_id) {
+        throw new Error(submitData.message || 'Failed to submit task to Aliyun');
       }
 
-      console.warn("Gemini response did not contain image data, returning original.");
-      return base64Image;
+      const taskId = submitData.output.task_id;
+      console.log('Task submitted, ID:', taskId);
+
+      // C. 轮询任务状态
+      return await this.pollTaskStatus(taskId);
 
     } catch (error) {
-      console.error("Error editing furniture:", error);
+      console.error("Error generating image with Aliyun:", error);
       // 降级：如果出错，返回原图，避免前端白屏
       return base64Image;
     }
+  }
+
+  // 轮询辅助函数
+  private async pollTaskStatus(taskId: string): Promise<string> {
+    const maxRetries = 30; // 最多轮询 30 次 (约 60秒)
+    const interval = 2000; // 2秒一次
+
+    for (let i = 0; i < maxRetries; i++) {
+      await new Promise(resolve => setTimeout(resolve, interval));
+
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'check',
+          task_id: taskId
+        })
+      });
+
+      const data = await res.json();
+      
+      if (data.output && data.output.task_status === 'SUCCEEDED') {
+        if (data.output.results && data.output.results.length > 0) {
+          // 成功！返回生成的图片 URL
+          return data.output.results[0].url; 
+        }
+      } else if (data.output && data.output.task_status === 'FAILED') {
+        throw new Error('Aliyun task failed: ' + data.output.message);
+      }
+      
+      console.log(`Polling task ${taskId}: ${data.output?.task_status}...`);
+    }
+
+    throw new Error('Task timed out');
   }
 }
 
