@@ -102,17 +102,24 @@ export class GeminiService {
           // 1. 绘制原图
           ctx.drawImage(img, 0, 0);
 
-          // 2. 混合模式改色
-          // 使用 'multiply' (正片叠底) 或 'color' 模式
-          // 'multiply' 适合保留阴影，'color' 适合保留明度
-          // 我们这里使用混合策略：先叠一层颜色
+          // 2. 混合模式改色 - 增强版算法
           
-          ctx.globalCompositeOperation = 'multiply'; // 正片叠底，保留纹理和阴影
+          // 第一层：Color 模式 (强制改变色相和饱和度，保留明度)
+          // 这是实现“改色”最关键的一步，能让颜色真的变过去
+          ctx.globalCompositeOperation = 'color';
           ctx.fillStyle = hexCode;
-          ctx.globalAlpha = 0.6; // 透明度，避免颜色太死
+          ctx.globalAlpha = 0.8; // 强度调高，确保颜色显现
           ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-          // 3. 再叠一层 'overlay' 增强质感 (可选)
+          // 第二层：Multiply 模式 (正片叠底)
+          // 用于加深颜色并融合纹理，避免画面发灰
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = hexCode;
+          ctx.globalAlpha = 0.4; 
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // 第三层：Overlay 模式 (叠加)
+          // 增加对比度和光泽感，让画面更通透
           ctx.globalCompositeOperation = 'overlay';
           ctx.fillStyle = hexCode;
           ctx.globalAlpha = 0.2;
