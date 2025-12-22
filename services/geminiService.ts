@@ -82,14 +82,14 @@ export class GeminiService {
     }
   }
 
-  // 2. 使用 Gemini 生成/编辑图片 (尝试使用最新的 2.5 预览版模型)
+  // 2. 使用 Gemini 生成/编辑图片
   async editFurnitureColor(base64Image: string, furnitureType: string, targetColor: string, hexCode: string): Promise<string> {
     try {
       console.log('Calling Gemini for image editing...');
       
-      // 尝试使用用户指定的最新模型
+      // 使用目前稳定可用的 gemini-2.0-flash-exp 模型
       const response = await this.ai.models.generateContent({
-        model: "gemini-2.5-flash-image-preview-05-20",
+        model: "gemini-2.0-flash-exp",
         contents: {
           parts: [
             {
