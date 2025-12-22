@@ -82,43 +82,58 @@ export class GeminiService {
     }
   }
 
-  // 2. 使用 Gemini 生成/编辑图片
+  // 2. 使用 Replicate (ControlNet) 进行 AI 改色
+  // 这是真正的 AI 改色，保留结构，改变材质
   async editFurnitureColor(base64Image: string, furnitureType: string, targetColor: string, hexCode: string): Promise<string> {
     try {
-      console.log('Calling Gemini for image editing...');
+      console.log('Starting Replicate generation...');
       
-      // 切换到 gemini-1.5-flash，它比 2.0-exp 更稳定，配额更宽裕，不容易报 429
-      const response = await this.ai.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                data: base64Image.split(',')[1],
-                mimeType: 'image/png',
-              },
-            },
-            {
-              text: `Edit this image. Change the color of the ${furnitureType} to ${targetColor} (Hex: ${hexCode}). 
-              Keep the texture, lighting, and shadows exactly the same. 
-              Output the result as a realistic photo.`,
-            },
-          ],
-        }
+      // A. 上传图片到 Supabase 获取公开 URL
+      const res = await fetch(base64Image);
+      const blob = await res.blob();
+      const file = new File([blob], "temp_replicate.jpg", { type: "image/jpeg" });
+      
+      const uploadedUrl = await backendService.uploadTexture(file);
+      if (!uploadedUrl) {
+        throw new Error("Failed to upload image to Supabase");
+      }
+      console.log('Image uploaded:', uploadedUrl);
+
+      // B. 调用 Replicate 接口
+      const prompt = `${targetColor} ${furnitureType}, interior design, photorealistic, 8k, detailed texture`;
+      
+      const response = await fetch('/api/replicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: uploadedUrl,
+          prompt: prompt
+        })
       });
 
-      // 目前 Gemini API (非 Imagen) 通常不直接返回图片二进制流
-      // 这里我们尝试检查是否有 image parts，如果没有，则降级返回原图
+      const data = await response.json();
       
-      console.log("Gemini response text:", response.text());
+      if (!response.ok) {
+        throw new Error(data.error || 'Replicate API failed');
+      }
+
+      if (data.output && data.output.length > 0) {
+        // Replicate 返回的是图片 URL 数组，取最后一张（通常是结果图）
+        // ControlNet Canny 模型通常返回 [边缘图, 结果图] 或者直接 [结果图]
+        // 我们取最后一张比较保险
+        const resultUrl = data.output[data.output.length - 1];
+        
+        // 为了避免跨域问题，我们最好把这个 URL 转回 Base64，或者直接返回 URL
+        // 这里直接返回 URL，App.tsx 里的 img src 可以直接用
+        return resultUrl;
+      }
       
-      // 模拟：如果未来 API 返回图片 URL 或 Base64，在这里处理
-      // 现在为了不报错，返回原图
-      return base64Image;
+      throw new Error('No output from Replicate');
 
     } catch (error) {
-      console.error("Gemini image editing failed:", error);
-      return base64Image; // 降级处理
+      console.error("Replicate generation error:", error);
+      // 降级：返回原图，避免白屏
+      return base64Image;
     }
   }
 
