@@ -34,18 +34,21 @@ const App: React.FC = () => {
     isAuthenticated: false,
   });
 
-  const [activeCategory, setActiveCategory] = useState<string>(CATEGORIES[0]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loginFields, setLoginFields] = useState({ username: '', password: '' });
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newBackendPassword, setNewBackendPassword] = useState('');
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   
   const [newColor, setNewColor] = useState<Omit<ColorSwatch, 'id'>>({
     name: '',
     hex: '#4F46E5',
-    category: CATEGORIES[0],
+    category: '',
     finish: 'matte',
     imageUrl: undefined,
   });
@@ -55,8 +58,19 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const loadData = async () => {
-      const palettes = await backendService.getPalettes();
+      const [palettes, fetchedCategories] = await Promise.all([
+        backendService.getPalettes(),
+        backendService.getCategories()
+      ]);
+      
       setState(prev => ({ ...prev, palettes }));
+      setCategories(fetchedCategories);
+      
+      if (fetchedCategories.length > 0) {
+        const firstCat = fetchedCategories[0].name;
+        setActiveCategory(firstCat);
+        setNewColor(prev => ({ ...prev, category: firstCat }));
+      }
       
       // Debug: Check available models
       try {
@@ -73,6 +87,33 @@ const App: React.FC = () => {
     };
     loadData();
   }, []);
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      const added = await backendService.addCategory(newCategoryName.trim());
+      if (added) {
+        setCategories(prev => [...prev, added]);
+        setNewCategoryName('');
+      }
+    } catch (e) {
+      alert('添加分类失败，可能是名称重复');
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (confirm('确定要删除这个分类吗？与之关联的色卡可能无法正确显示。')) {
+      const success = await backendService.deleteCategory(id);
+      if (success) {
+        setCategories(prev => prev.filter(c => c.id !== id));
+        // 如果删除了当前选中的分类，切换到第一个
+        const deletedCat = categories.find(c => c.id === id);
+        if (deletedCat && activeCategory === deletedCat.name && categories.length > 1) {
+          setActiveCategory(categories[0].name);
+        }
+      }
+    }
+  };
 
   const filteredPalettes = useMemo(() => {
     return state.palettes.filter(p => p.category === activeCategory);
@@ -376,12 +417,14 @@ const App: React.FC = () => {
           <div className="mt-12 mb-8">
              <h3 className="font-bold text-slate-800 mb-4 px-2">主打系列</h3>
              <div className="grid grid-cols-5 gap-2 px-1">
-                {CATEGORIES.map(cat => (
-                  <div key={cat} className="flex flex-col items-center gap-1.5 cursor-pointer" onClick={() => { setActiveCategory(cat); setState(prev => ({...prev, step: 'HOME'})); }}>
+                {categories.map(cat => (
+                  <div key={cat.id} className="flex flex-col items-center gap-1.5 cursor-pointer" onClick={() => { setActiveCategory(cat.name); setState(prev => ({...prev, step: 'HOME'})); }}>
                     <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100">
-                      <div className="text-indigo-400">{CATEGORY_ICONS[cat]}</div>
+                      <div className="text-indigo-400">
+                        {CATEGORY_ICONS[cat.name] ? CATEGORY_ICONS[cat.name] : <Layers size={18} />}
+                      </div>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-500">{cat}</span>
+                    <span className="text-[10px] font-bold text-slate-500">{cat.name}</span>
                   </div>
                 ))}
              </div>
@@ -467,6 +510,55 @@ const App: React.FC = () => {
             )}
           </div>
 
+          {/* 分类管理区块 */}
+          <div className="bg-slate-800 p-6 rounded-[2rem] shadow-lg text-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold flex items-center gap-2">
+                <Layers size={18} /> 分类管理
+              </h3>
+              <button 
+                onClick={() => setShowCategoryManager(!showCategoryManager)}
+                className="text-[11px] font-bold bg-white/20 px-3 py-1 rounded-full active:scale-95 transition-transform"
+              >
+                {showCategoryManager ? '收起' : '管理'}
+              </button>
+            </div>
+            
+            {showCategoryManager && (
+              <div className="space-y-4 animate-in slide-in-from-top">
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    placeholder="新分类名称"
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-xs placeholder:text-white/50 focus:outline-none focus:bg-white/20"
+                  />
+                  <button 
+                    onClick={handleAddCategory}
+                    className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold active:scale-95"
+                  >
+                    添加
+                  </button>
+                </div>
+                
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                  {categories.map(cat => (
+                    <div key={cat.id} className="bg-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs">
+                      <span>{cat.name}</span>
+                      <button 
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="text-white/40 hover:text-rose-400 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
             <div className="flex items-center justify-between mb-4">
                <h3 className="font-bold text-slate-900 flex items-center gap-2">
@@ -525,7 +617,7 @@ const App: React.FC = () => {
                         }}
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:outline-none"
                       >
-                        {CATEGORIES.map(cat => <option key={cat}>{cat}</option>)}
+                        {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                       </select>
                     </div>
                  </div>
@@ -565,20 +657,24 @@ const App: React.FC = () => {
              </div>
 
              <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar px-2">
-                {CATEGORIES.map(cat => (
+                {categories.map(cat => (
                   <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.name)}
                     className={`px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
-                      activeCategory === cat 
+                      activeCategory === cat.name 
                       ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
                       : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100'
                     }`}
                   >
-                    <span className={activeCategory === cat ? 'text-indigo-400' : 'text-slate-300'}>
-                      {React.cloneElement(CATEGORY_ICONS[cat] as React.ReactElement, { size: 14 })}
+                    <span className={activeCategory === cat.name ? 'text-indigo-400' : 'text-slate-300'}>
+                      {CATEGORY_ICONS[cat.name] ? (
+                        React.cloneElement(CATEGORY_ICONS[cat.name] as React.ReactElement, { size: 14 })
+                      ) : (
+                        <Layers size={14} />
+                      )}
                     </span>
-                    {cat}
+                    {cat.name}
                   </button>
                 ))}
               </div>
@@ -600,7 +696,13 @@ const App: React.FC = () => {
                           <p className="font-bold text-slate-800 text-sm">{palette.name}</p>
                         </div>
                         <div className="flex items-center gap-1 mt-0.5">
-                          <span className="text-indigo-400">{React.cloneElement(CATEGORY_ICONS[palette.category] as React.ReactElement, { size: 10 })}</span>
+                          <span className="text-indigo-400">
+                            {CATEGORY_ICONS[palette.category] ? (
+                              React.cloneElement(CATEGORY_ICONS[palette.category] as React.ReactElement, { size: 10 })
+                            ) : (
+                              <Layers size={10} />
+                            )}
+                          </span>
                           <span className="text-indigo-500 text-[8px] font-bold uppercase">{palette.category}</span>
                         </div>
                       </div>
@@ -662,20 +764,20 @@ const App: React.FC = () => {
               </div>
               
               <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                {CATEGORIES.map(cat => (
+                {categories.map(cat => (
                   <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
+                    key={cat.id}
+                    onClick={() => setActiveCategory(cat.name)}
                     className={`px-4 py-2.5 rounded-2xl text-[13px] font-bold whitespace-nowrap transition-all border flex items-center gap-2 ${
-                      activeCategory === cat 
+                      activeCategory === cat.name 
                       ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
                       : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100 shadow-sm'
                     }`}
                   >
-                    <span className={activeCategory === cat ? 'text-indigo-400' : 'text-slate-300'}>
-                      {CATEGORY_ICONS[cat]}
+                    <span className={activeCategory === cat.name ? 'text-indigo-400' : 'text-slate-300'}>
+                      {CATEGORY_ICONS[cat.name] || <Layers size={18} />}
                     </span>
-                    {cat}
+                    {cat.name}
                   </button>
                 ))}
               </div>

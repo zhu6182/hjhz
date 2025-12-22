@@ -69,6 +69,57 @@ export class BackendService {
     localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
   }
 
+  // 获取所有分类
+  async getCategories(): Promise<{ id: string; name: string }[]> {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching categories:', error);
+      // 降级：如果数据库还没建表，返回默认分类
+      return [
+        { id: '1', name: '木纹' },
+        { id: '2', name: '纯色' },
+        { id: '3', name: '金属' },
+        { id: '4', name: '肤感' },
+        { id: '5', name: '大理石纹' }
+      ];
+    }
+    return data || [];
+  }
+
+  // 添加分类
+  async addCategory(name: string): Promise<{ id: string; name: string } | null> {
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{ name }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding category:', error);
+      throw error;
+    }
+    return data;
+  }
+
+  // 删除分类
+  async deleteCategory(id: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting category:', error);
+      return false;
+    }
+    return true;
+  }
+
+  // 获取所有色卡
   async getPalettes(): Promise<ColorSwatch[]> {
     try {
       const { data, error } = await supabase
