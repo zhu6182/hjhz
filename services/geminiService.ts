@@ -87,9 +87,9 @@ export class GeminiService {
     try {
       console.log('Calling Gemini for image editing...');
       
-      // 使用目前稳定可用的 gemini-2.0-flash-exp 模型
+      // 切换到 gemini-1.5-flash，它比 2.0-exp 更稳定，配额更宽裕，不容易报 429
       const response = await this.ai.models.generateContent({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-1.5-flash",
         contents: {
           parts: [
             {
