@@ -70,6 +70,8 @@ const App: React.FC = () => {
     nanobanana: true
   });
 
+  const [showUserProfile, setShowUserProfile] = useState(false);
+
   useEffect(() => {
     // Load enabled models from localStorage
     const savedModels = localStorage.getItem('enabledModels');
@@ -499,19 +501,83 @@ const App: React.FC = () => {
                 上传实拍，实时预览木纹、金属、大理石等 2025 流行质感。
               </p>
             </div>
-            <button 
-              onClick={() => {
-                if (state.isAuthenticated) {
-                  setState(prev => ({ ...prev, step: 'MANAGE' }));
-                } else {
-                  setState(prev => ({ ...prev, step: 'LOGIN' }));
-                }
-              }}
-              className="p-3 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-indigo-600 transition-colors border border-slate-100"
-            >
-              <Settings size={20} />
-            </button>
+            <div className="flex items-center gap-3">
+              {state.isAuthenticated && currentUser && !currentUser.is_admin && (
+                 <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span className="text-xs font-bold text-indigo-900">{currentUser.credits} 点数</span>
+                 </div>
+              )}
+              <button 
+                onClick={() => {
+                  if (state.isAuthenticated) {
+                    if (currentUser?.is_admin) {
+                      setState(prev => ({ ...prev, step: 'MANAGE' }));
+                    } else {
+                      setShowUserProfile(true);
+                    }
+                  } else {
+                    setState(prev => ({ ...prev, step: 'LOGIN' }));
+                  }
+                }}
+                className="p-3 bg-white rounded-2xl shadow-sm text-slate-400 hover:text-indigo-600 transition-colors border border-slate-100"
+              >
+                {state.isAuthenticated ? (currentUser?.is_admin ? <Settings size={20} /> : <User size={20} />) : <Settings size={20} />}
+              </button>
+            </div>
           </div>
+          
+          {showUserProfile && currentUser && !currentUser.is_admin && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white rounded-[2rem] p-6 w-full max-w-sm shadow-2xl border border-white/50 relative">
+                <button 
+                  onClick={() => setShowUserProfile(false)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+                >
+                  <X size={20} />
+                </button>
+                
+                <div className="flex flex-col items-center mb-6">
+                  <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-3 shadow-inner">
+                    <User size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900">{currentUser.username}</h3>
+                  <p className="text-xs text-slate-400">普通用户</p>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-bold text-slate-600">剩余点数</span>
+                    <span className="text-2xl font-bold text-indigo-600">{currentUser.credits}</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                    <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${Math.min(currentUser.credits * 10, 100)}%` }}></div>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-2 text-center">每生成一次图片消耗 1 个点数</p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => {
+                      alert('请联系管理员充值');
+                    }}
+                    className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100"
+                  >
+                    充值点数
+                  </button>
+                  <button 
+                    onClick={() => {
+                      handleLogout();
+                      setShowUserProfile(false);
+                    }}
+                    className="flex-1 py-3 bg-rose-50 text-rose-500 rounded-xl font-bold text-sm hover:bg-rose-100 transition-colors"
+                  >
+                    退出登录
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="space-y-4">
             <label className="flex flex-col items-center justify-center w-full aspect-square border-2 border-dashed border-slate-200 rounded-[2.5rem] bg-white hover:bg-slate-50 transition-all cursor-pointer group relative overflow-hidden active:scale-[0.98]">
@@ -615,7 +681,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {state.step === 'MANAGE' && (
+      {state.step === 'MANAGE' && currentUser?.is_admin && (
         <div className="flex-1 flex flex-col md:flex-row h-full -mx-6 -my-4 md:mx-0 md:my-0 min-h-[80vh]">
           
           {/* Desktop Sidebar */}
