@@ -5,12 +5,35 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    try {
+      const replicateToken = process.env.REPLICATE_API_TOKEN;
+      const hasToken = !!replicateToken;
+      let authOk = false;
+      let detail = null;
+      if (hasToken) {
+        const headers = {
+          "Authorization": `Token ${replicateToken}`,
+          "Content-Type": "application/json",
+        };
+        const ping = await fetch("https://api.replicate.com/v1/models/google/imagen-3-fast", { headers });
+        authOk = ping.ok;
+        if (!authOk) {
+          const body = await ping.json().catch(() => null);
+          detail = body?.detail || `HTTP ${ping.status}`;
+        }
+      }
+      return res.status(200).json({ ok: true, hasToken, authOk, detail });
+    } catch (e) {
+      return res.status(500).json({ ok: false, error: e.message });
+    }
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { image_url, prompt } = req.body;
+    const { image_url, prompt, model, aspect_ratio, safety_filter_level } = req.body;
     
     // 使用 Replicate API Token
     const replicateToken = process.env.REPLICATE_API_TOKEN;
@@ -18,36 +41,84 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Server config error: Missing REPLICATE_API_TOKEN' });
     }
 
-    if (!image_url || !prompt) {
-      return res.status(400).json({ error: 'Missing image_url or prompt' });
+    const headers = {
+      "Authorization": `Token ${replicateToken}`,
+      "Content-Type": "application/json",
+    };
+
+    let version = null;
+    let input = null;
+    let useImagen = model === 'google/imagen-3-fast';
+    let useNanoBanana = model === 'google/nano-banana';
+
+    if (useImagen) {
+      if (!prompt) {
+        return res.status(400).json({ error: 'Missing prompt' });
+      }
+
+      const modelResp = await fetch("https://api.replicate.com/v1/models/google/imagen-3-fast", {
+        headers,
+      });
+      const modelInfo = await modelResp.json();
+      if (!modelResp.ok) {
+        return res.status(500).json({ error: modelInfo.detail || 'Failed to get model info' });
+      }
+      version = (modelInfo.latest_version && modelInfo.latest_version.id) || null;
+      if (!version) {
+        return res.status(500).json({ error: 'Failed to resolve model version' });
+      }
+
+      input = {
+        prompt,
+        aspect_ratio: aspect_ratio || '16:9',
+        safety_filter_level: safety_filter_level || 'block_medium_and_above',
+      };
+    } else if (useNanoBanana) {
+      if (!prompt || !image_url) {
+        return res.status(400).json({ error: 'Missing image_url or prompt' });
+      }
+      const modelResp = await fetch("https://api.replicate.com/v1/models/google/nano-banana", {
+        headers,
+      });
+      const modelInfo = await modelResp.json();
+      if (!modelResp.ok) {
+        return res.status(500).json({ error: modelInfo.detail || 'Failed to get model info' });
+      }
+      version = (modelInfo.latest_version && modelInfo.latest_version.id) || null;
+      if (!version) {
+        return res.status(500).json({ error: 'Failed to resolve model version' });
+      }
+      input = {
+        prompt,
+        image_input: [image_url],
+      };
+    } else {
+      if (!image_url || !prompt) {
+        return res.status(400).json({ error: 'Missing image_url or prompt' });
+      }
+      console.log('Starting Replicate generation with prompt:', prompt);
+
+      const modelVersion = "aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613";
+      version = modelVersion;
+      input = {
+        image: image_url,
+        prompt: prompt + ", photorealistic, interior design, high quality, 8k",
+        a_prompt: "best quality, extremely detailed",
+        n_prompt: "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, cartoon, painting, illustration",
+        num_samples: 1,
+        image_resolution: 512,
+        ddim_steps: 20,
+        scale: 9,
+        eta: 0,
+      };
     }
-
-    console.log('Starting Replicate generation with prompt:', prompt);
-
-    // 1. 创建预测任务 (使用 ControlNet Canny 模型)
-    // 模型: jagilley/controlnet-canny
-    // 这是一个基于 Stable Diffusion 1.5 + ControlNet 的模型，速度快且稳定
-    const modelVersion = "aff48af9c68d162388d230a2ab003f68d2638d88307bdaf1c2f1ac95079c9613";
     
     const startResponse = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
-      headers: {
-        "Authorization": `Token ${replicateToken}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
-        version: modelVersion,
-        input: {
-          image: image_url,
-          prompt: prompt + ", photorealistic, interior design, high quality, 8k",
-          a_prompt: "best quality, extremely detailed",
-          n_prompt: "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, cartoon, painting, illustration",
-          num_samples: 1,
-          image_resolution: 512, // 可以根据需要调整，越大越慢
-          ddim_steps: 20,
-          scale: 9,
-          eta: 0,
-        },
+        version,
+        input,
       }),
     });
 

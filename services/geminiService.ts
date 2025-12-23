@@ -137,6 +137,70 @@ export class GeminiService {
     }
   }
 
+  async generateWithImagen(prompt: string, aspectRatio: string = '16:9', safetyLevel: string = 'block_medium_and_above'): Promise<string> {
+    try {
+      const response = await fetch('/api/replicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/imagen-3-fast',
+          prompt,
+          aspect_ratio: aspectRatio,
+          safety_filter_level: safetyLevel
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Replicate API failed');
+      }
+      if (typeof data.output === 'string') {
+        return data.output;
+      }
+      if (Array.isArray(data.output) && data.output.length > 0) {
+        return data.output[data.output.length - 1];
+      }
+      throw new Error('No output from Replicate');
+    } catch (error) {
+      console.error('Imagen generation error:', error);
+      throw error;
+    }
+  }
+
+  async generateWithNanoBanana(base64Image: string, prompt: string): Promise<string> {
+    try {
+      const res = await fetch(base64Image);
+      const blob = await res.blob();
+      const file = new File([blob], "nano_banana_input.jpg", { type: "image/jpeg" });
+      const uploadedUrl = await backendService.uploadTexture(file);
+      if (!uploadedUrl) {
+        throw new Error("Failed to upload image to Supabase");
+      }
+      const response = await fetch('/api/replicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/nano-banana',
+          prompt,
+          image_url: uploadedUrl
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Replicate API failed');
+      }
+      if (typeof data.output === 'string') {
+        return data.output;
+      }
+      if (Array.isArray(data.output) && data.output.length > 0) {
+        return data.output[data.output.length - 1];
+      }
+      throw new Error('No output from Replicate');
+    } catch (error) {
+      console.error('Nano Banana generation error:', error);
+      throw error;
+    }
+  }
+
   // 轮询辅助函数 (不再需要)
   // private async pollTaskStatus(taskId: string): Promise<string> { ... }
 }

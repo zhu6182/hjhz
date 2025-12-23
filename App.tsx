@@ -55,6 +55,7 @@ const App: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [modelMode, setModelMode] = useState<'controlnet' | 'imagen3' | 'nanobanana'>('controlnet');
 
   useEffect(() => {
     const loadData = async () => {
@@ -144,12 +145,21 @@ const App: React.FC = () => {
 
     setState(prev => ({ ...prev, step: 'GENERATING' }));
     try {
-      const resultImage = await geminiService.editFurnitureColor(
-        state.originalImage,
-        state.analysis.type,
-        `${state.selectedColor.category} - ${state.selectedColor.name}`,
-        state.selectedColor.hex
-      );
+      let resultImage = '';
+      if (modelMode === 'imagen3') {
+        const prompt = `Interior scene with ${state.analysis.type} in ${state.selectedColor.category} ${state.selectedColor.name}, photorealistic, natural light`;
+        resultImage = await geminiService.generateWithImagen(prompt, '16:9');
+      } else if (modelMode === 'nanobanana') {
+        const prompt = `Make the ${state.analysis.type} ${state.selectedColor.name} style, keep scene natural`;
+        resultImage = await geminiService.generateWithNanoBanana(state.originalImage, prompt);
+      } else {
+        resultImage = await geminiService.editFurnitureColor(
+          state.originalImage,
+          state.analysis.type,
+          `${state.selectedColor.category} - ${state.selectedColor.name}`,
+          state.selectedColor.hex
+        );
+      }
       
       const newProject: ProjectRecord = {
         id: Date.now().toString(),
@@ -780,6 +790,42 @@ const App: React.FC = () => {
                     {cat.name}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-lg text-slate-900">生成模式</h4>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">Step 3: 选择模型</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setModelMode('controlnet')}
+                  className={`px-4 py-2.5 rounded-2xl text-[13px] font-bold transition-all border flex items-center gap-2 ${
+                    modelMode === 'controlnet' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100 shadow-sm'
+                  }`}
+                >
+                  <Layers size={16} />
+                  原图改色
+                </button>
+                <button
+                  onClick={() => setModelMode('nanobanana')}
+                  className={`px-4 py-2.5 rounded-2xl text-[13px] font-bold transition-all border flex items-center gap-2 ${
+                    modelMode === 'nanobanana' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100 shadow-sm'
+                  }`}
+                >
+                  <ImageIcon size={16} />
+                  图像条件生成
+                </button>
+                <button
+                  onClick={() => setModelMode('imagen3')}
+                  className={`px-4 py-2.5 rounded-2xl text-[13px] font-bold transition-all border flex items-center gap-2 ${
+                    modelMode === 'imagen3' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100 shadow-sm'
+                  }`}
+                >
+                  <Sparkles size={16} />
+                  文本生成
+                </button>
               </div>
             </div>
 
