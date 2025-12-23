@@ -178,6 +178,35 @@ export class BackendService {
     return newCredits;
   }
 
+  // Refund credit (if generation failed)
+  async refundCredit(userId: string): Promise<number> {
+    const { data: user, error: fetchError } = await supabase
+      .from('app_users')
+      .select('credits')
+      .eq('id', userId)
+      .single();
+    
+    if (fetchError || !user) throw new Error('User not found');
+
+    const newCredits = user.credits + 1;
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('app_users')
+      .update({ credits: newCredits })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+    
+    // Update local session if it's the current user
+    if (this.currentUser && this.currentUser.id === userId) {
+      this.currentUser.credits = newCredits;
+      localStorage.setItem('furnicolor_user', JSON.stringify(this.currentUser));
+    }
+
+    return newCredits;
+  }
+
   // Refresh current user data from server
   async refreshUser(): Promise<AppUser | null> {
     if (!this.currentUser) return null;

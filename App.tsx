@@ -189,12 +189,28 @@ const App: React.FC = () => {
       return;
     }
 
-    if (currentUser.credits < 1) {
-      setState(prev => ({ ...prev, error: "余额不足，请联系管理员充值" }));
-      return;
+    // Deduct credit FIRST (Blocking)
+    try {
+      // 1. Pre-check
+      if (currentUser.credits < 1) {
+        setState(prev => ({ ...prev, error: "余额不足，请联系管理员充值" }));
+        return;
+      }
+      
+      // 2. Attempt Deduction
+      const newCredits = await backendService.deductCredit(currentUser.id);
+      
+      // 3. Update local state immediately
+      setCurrentUser(prev => prev ? ({ ...prev, credits: newCredits }) : null);
+
+    } catch (e) {
+      console.error("Deduct credit failed", e);
+      setState(prev => ({ ...prev, error: "扣费失败，请检查网络连接" }));
+      return; // STOP EXECUTION
     }
 
     setState(prev => ({ ...prev, step: 'GENERATING' }));
+    
     try {
       let resultImage = '';
       if (modelMode === 'imagen3') {
@@ -212,22 +228,6 @@ const App: React.FC = () => {
         );
       }
       
-      // Deduct credit
-      try {
-        const newCredits = await backendService.deductCredit(currentUser.id);
-        // Force refresh to ensure sync
-        const updatedUser = await backendService.refreshUser();
-        if (updatedUser) {
-          setCurrentUser(updatedUser);
-        } else {
-          // Fallback if refresh fails
-          setCurrentUser(prev => prev ? ({ ...prev, credits: newCredits }) : null);
-        }
-      } catch (e) {
-        console.error("Deduct credit failed", e);
-        alert('扣费失败，请检查网络连接');
-      }
-
       const newProject: ProjectRecord = {
         id: Date.now().toString(),
         date: new Date().toLocaleDateString(),
@@ -237,14 +237,32 @@ const App: React.FC = () => {
         colorName: state.selectedColor.name,
       };
 
+      // Success: Refresh user state from server to be double sure (optional but good)
+      backendService.refreshUser().then(u => {
+         if (u) setCurrentUser(u);
+      });
+
       setState(prev => ({ 
         ...prev, 
         editedImage: resultImage, 
         step: 'RESULT',
         history: [newProject, ...prev.history] 
       }));
+
     } catch (err: any) {
       console.error("Generate error:", err);
+      
+      // Refund if generation failed
+      try {
+        await backendService.refundCredit(currentUser.id);
+        const user = await backendService.refreshUser();
+        if (user) setCurrentUser(user);
+        alert('生成失败，点数已退回');
+      } catch (refundError) {
+        console.error("Refund failed:", refundError);
+        alert('生成失败且退款异常，请联系管理员');
+      }
+
       setState(prev => ({ 
         ...prev, 
         error: `生成失败: ${err.message || "请检查网络或API Key"}`, 
