@@ -160,10 +160,12 @@ export class BackendService {
 
     // 2. Deduct
     const newCredits = user.credits - 1;
-    const { error: updateError } = await supabase
+    const { data: updatedUser, error: updateError } = await supabase
       .from('app_users')
       .update({ credits: newCredits })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select()
+      .single();
 
     if (updateError) throw updateError;
     
@@ -174,6 +176,23 @@ export class BackendService {
     }
 
     return newCredits;
+  }
+
+  // Refresh current user data from server
+  async refreshUser(): Promise<AppUser | null> {
+    if (!this.currentUser) return null;
+    
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('*')
+      .eq('id', this.currentUser.id)
+      .single();
+
+    if (error || !data) return null;
+
+    this.currentUser = data;
+    localStorage.setItem('furnicolor_user', JSON.stringify(data));
+    return data;
   }
 
   async updatePassword(newPassword: string): Promise<void> {

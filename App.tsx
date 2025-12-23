@@ -215,9 +215,17 @@ const App: React.FC = () => {
       // Deduct credit
       try {
         const newCredits = await backendService.deductCredit(currentUser.id);
-        setCurrentUser(prev => prev ? ({ ...prev, credits: newCredits }) : null);
+        // Force refresh to ensure sync
+        const updatedUser = await backendService.refreshUser();
+        if (updatedUser) {
+          setCurrentUser(updatedUser);
+        } else {
+          // Fallback if refresh fails
+          setCurrentUser(prev => prev ? ({ ...prev, credits: newCredits }) : null);
+        }
       } catch (e) {
         console.error("Deduct credit failed", e);
+        alert('扣费失败，请检查网络连接');
       }
 
       const newProject: ProjectRecord = {
