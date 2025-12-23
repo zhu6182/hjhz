@@ -145,29 +145,16 @@ export class BackendService {
 
   // User: Deduct credit
   async deductCredit(userId: string): Promise<number> {
-    // 1. Get current credits
-    const { data: user, error: fetchError } = await supabase
-      .from('app_users')
-      .select('credits')
-      .eq('id', userId)
-      .single();
-    
-    if (fetchError || !user) throw new Error('User not found');
-    
-    if (user.credits < 1) {
-      throw new Error('Insufficient credits');
+    // Use RPC for atomic deduction
+    const { data, error } = await supabase
+      .rpc('deduct_credits', { p_user_id: userId });
+
+    if (error) {
+      console.error('RPC Error:', error);
+      throw new Error(error.message || 'Deduction failed');
     }
 
-    // 2. Deduct
-    const newCredits = user.credits - 1;
-    const { data: updatedUser, error: updateError } = await supabase
-      .from('app_users')
-      .update({ credits: newCredits })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
+    const newCredits = data as number;
     
     // Update local session if it's the current user
     if (this.currentUser && this.currentUser.id === userId) {
