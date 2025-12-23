@@ -2,12 +2,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { AppState, ColorSwatch, ProjectRecord } from './types';
+import { AppUser } from './services/backendService';
 import { geminiService } from './services/geminiService';
 import { backendService } from './services/backendService';
 import { 
   Upload, Camera, Check, ArrowRight, Sparkles, RefreshCcw, Layers, 
   Zap, Info, Share2, Download, Settings, Plus, Trash2, Filter, X, Maximize2, 
-  Edit3, Image as ImageIcon, TreePine, Palette, Waves, Gem, Lock, User, KeyRound
+  Edit3, Image as ImageIcon, TreePine, Palette, Waves, Gem, Lock, User, KeyRound,
+  LogOut, CreditCard, Users
 } from 'lucide-react';
 
 const CATEGORIES = ['木纹', '纯色', '金属', '肤感', '大理石纹'] as const;
@@ -22,12 +24,18 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [usersList, setUsersList] = useState<AppUser[]>([]); // For admin
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<AppUser | null>(null);
+  const [newUserInfo, setNewUserInfo] = useState({ username: '', password: '', credits: 10 });
+
   const [state, setState] = useState<AppState>({
     originalImage: null,
     editedImage: null,
     analysis: null,
     selectedColor: null,
-    step: 'HOME',
+    step: 'LOGIN', // Default to LOGIN
     error: null,
     history: [],
     palettes: [],
@@ -78,6 +86,17 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // Check for existing session
+    const user = backendService.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+      if (user.is_admin) {
+        setState(prev => ({ ...prev, isAuthenticated: true, step: 'MANAGE' }));
+      } else {
+        setState(prev => ({ ...prev, isAuthenticated: true, step: 'HOME' }));
+      }
+    }
+
     const loadData = async () => {
       const [palettes, fetchedCategories] = await Promise.all([
         backendService.getPalettes(),
@@ -162,6 +181,15 @@ const App: React.FC = () => {
 
   const handleGenerate = async () => {
     if (!state.originalImage || !state.selectedColor || !state.analysis) return;
+    if (!currentUser) {
+      setState(prev => ({ ...prev, error: "请先登录" }));
+      return;
+    }
+
+    if (currentUser.credits < 1) {
+      setState(prev => ({ ...prev, error: "余额不足，请联系管理员充值" }));
+      return;
+    }
 
     setState(prev => ({ ...prev, step: 'GENERATING' }));
     try {
@@ -181,6 +209,14 @@ const App: React.FC = () => {
         );
       }
       
+      // Deduct credit
+      try {
+        const newCredits = await backendService.deductCredit(currentUser.id);
+        setCurrentUser(prev => prev ? ({ ...prev, credits: newCredits }) : null);
+      } catch (e) {
+        console.error("Deduct credit failed", e);
+      }
+
       const newProject: ProjectRecord = {
         id: Date.now().toString(),
         date: new Date().toLocaleDateString(),
@@ -319,13 +355,69 @@ const App: React.FC = () => {
     e.preventDefault();
     setIsLoggingIn(true);
     setState(prev => ({ ...prev, error: null }));
-    const success = await backendService.verifyLogin(loginFields.username, loginFields.password);
-    setIsLoggingIn(false);
-    if (success) {
-      setState(prev => ({ ...prev, isAuthenticated: true, step: 'MANAGE' }));
-      setLoginFields({ username: '', password: '' });
-    } else {
-      setState(prev => ({ ...prev, error: "用户名或密码错误" }));
+    
+    try {
+      const user = await backendService.verifyLogin(loginFields.username, loginFields.password);
+      setIsLoggingIn(false);
+      
+      if (user) {
+        setCurrentUser(user);
+        setLoginFields({ username: '', password: '' });
+        
+        if (user.is_admin) {
+          setState(prev => ({ ...prev, isAuthenticated: true, step: 'MANAGE' }));
+        } else {
+          setState(prev => ({ ...prev, isAuthenticated: true, step: 'HOME' }));
+        }
+      } else {
+        setState(prev => ({ ...prev, error: "用户名或密码错误" }));
+      }
+    } catch (e) {
+      setIsLoggingIn(false);
+      setState(prev => ({ ...prev, error: "登录请求失败，请检查网络" }));
+    }
+  };
+
+  const handleLogout = () => {
+    backendService.logout();
+    setCurrentUser(null);
+    setState(prev => ({ ...prev, isAuthenticated: false, step: 'LOGIN' }));
+  };
+
+  // Admin: Load users
+  useEffect(() => {
+    if (state.step === 'MANAGE' && currentUser?.is_admin) {
+      backendService.getAllUsers().then(setUsersList);
+    }
+  }, [state.step, currentUser]);
+
+  const handleCreateUser = async () => {
+    if (!newUserInfo.username || !newUserInfo.password) return;
+    try {
+      await backendService.createUser({
+        username: newUserInfo.username,
+        password: newUserInfo.password,
+        credits: newUserInfo.credits,
+        is_admin: false
+      });
+      const users = await backendService.getAllUsers();
+      setUsersList(users);
+      setNewUserInfo({ username: '', password: '', credits: 10 });
+      setShowUserModal(false);
+    } catch (e) {
+      alert('创建用户失败');
+    }
+  };
+
+  const handleRecharge = async (user: AppUser, amount: number) => {
+    try {
+      const newCredits = user.credits + amount;
+      await backendService.updateUserCredits(user.id, newCredits);
+      // Refresh list
+      const users = await backendService.getAllUsers();
+      setUsersList(users);
+    } catch (e) {
+      alert('充值失败');
     }
   };
 
@@ -468,8 +560,8 @@ const App: React.FC = () => {
             <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 mx-auto">
               <Lock size={24} />
             </div>
-            <h3 className="text-xl font-bold text-center text-slate-900 mb-2">进入管理后台</h3>
-            <p className="text-xs text-slate-400 text-center mb-8 font-medium">请验证您的管理员身份</p>
+            <h3 className="text-xl font-bold text-center text-slate-900 mb-2">欢迎登录</h3>
+            <p className="text-xs text-slate-400 text-center mb-8 font-medium">好家改造 · 家具焕新平台</p>
             
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="relative">
@@ -508,6 +600,109 @@ const App: React.FC = () => {
 
       {state.step === 'MANAGE' && (
         <div className="flex-1 flex flex-col gap-6 animate-in slide-in-from-right duration-500 pb-20">
+          
+          <div className="flex justify-between items-center mb-2">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">后台管理</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                欢迎回来，{currentUser?.username} 
+                {currentUser?.is_admin && <span className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded text-[10px] font-bold">管理员</span>}
+              </p>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
+              title="退出登录"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
+
+          {/* 只有管理员在PC端才显示的用户管理区块 */}
+          {currentUser?.is_admin && (
+             <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white">
+               <div className="flex items-center justify-between mb-6">
+                 <h3 className="font-bold flex items-center gap-2">
+                   <Users size={18} /> 用户管理
+                 </h3>
+                 <button 
+                   onClick={() => setShowUserModal(true)}
+                   className="text-[11px] font-bold bg-indigo-600 px-4 py-1.5 rounded-full active:scale-95 transition-transform flex items-center gap-1"
+                 >
+                   <Plus size={14} /> 新增用户
+                 </button>
+               </div>
+
+               {showUserModal && (
+                 <div className="bg-white/10 p-4 rounded-2xl mb-6 animate-in slide-in-from-top">
+                   <div className="grid grid-cols-2 gap-3 mb-3">
+                     <input 
+                       type="text" 
+                       placeholder="用户名" 
+                       value={newUserInfo.username}
+                       onChange={e => setNewUserInfo({...newUserInfo, username: e.target.value})}
+                       className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:bg-black/40"
+                     />
+                     <input 
+                       type="text" 
+                       placeholder="密码" 
+                       value={newUserInfo.password}
+                       onChange={e => setNewUserInfo({...newUserInfo, password: e.target.value})}
+                       className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:bg-black/40"
+                     />
+                   </div>
+                   <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="text-xs text-white/60">初始点数:</span>
+                        <input 
+                          type="number" 
+                          value={newUserInfo.credits}
+                          onChange={e => setNewUserInfo({...newUserInfo, credits: parseInt(e.target.value) || 0})}
+                          className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-20 focus:outline-none focus:bg-black/40"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => setShowUserModal(false)} className="px-3 py-2 text-xs text-white/60 hover:text-white">取消</button>
+                        <button onClick={handleCreateUser} className="px-4 py-2 bg-indigo-500 rounded-xl text-xs font-bold">保存</button>
+                      </div>
+                   </div>
+                 </div>
+               )}
+
+               <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                 {usersList.map(user => (
+                   <div key={user.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors">
+                     <div className="flex items-center gap-3">
+                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${user.is_admin ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                         {user.username.charAt(0).toUpperCase()}
+                       </div>
+                       <div>
+                         <p className="text-sm font-bold">{user.username}</p>
+                         <p className="text-[10px] text-white/40">剩余点数: {user.credits}</p>
+                       </div>
+                     </div>
+                     {!user.is_admin && (
+                       <div className="flex items-center gap-2">
+                         <button 
+                           onClick={() => handleRecharge(user, 10)}
+                           className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold hover:bg-emerald-500/30"
+                         >
+                           +10次
+                         </button>
+                         <button 
+                           onClick={() => handleRecharge(user, 50)}
+                           className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold hover:bg-emerald-500/30"
+                         >
+                           +50次
+                         </button>
+                       </div>
+                     )}
+                   </div>
+                 ))}
+               </div>
+             </div>
+          )}
+
           {/* 修改密码区块 */}
           <div className="bg-indigo-600 p-6 rounded-[2rem] shadow-lg text-white">
             <div className="flex items-center justify-between mb-4">

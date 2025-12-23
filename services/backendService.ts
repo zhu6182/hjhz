@@ -49,25 +49,147 @@ const DEFAULT_PALETTES: ColorSwatch[] = [
   { id: 'd5', name: '灰网纹', hex: '#708090', category: '大理石纹', finish: 'glossy' },
 ];
 
+export interface AppUser {
+  id: string;
+  username: string;
+  password?: string;
+  credits: number;
+  is_admin: boolean;
+  created_at?: string;
+}
+
 export class BackendService {
+  private currentUser: AppUser | null = null;
+
   constructor() {
-    // Keep auth in local storage for now (simplest for this use case)
-    if (!localStorage.getItem(AUTH_KEY)) {
-      localStorage.setItem(AUTH_KEY, JSON.stringify(DEFAULT_AUTH));
+    // Try to restore session from localStorage
+    const savedUser = localStorage.getItem('furnicolor_user');
+    if (savedUser) {
+      this.currentUser = JSON.parse(savedUser);
     }
   }
 
-  async verifyLogin(username: string, password: string): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const auth = JSON.parse(localStorage.getItem(AUTH_KEY) || '{}');
-    return auth.username === username && auth.password === password;
+  getCurrentUser(): AppUser | null {
+    return this.currentUser;
+  }
+
+  logout(): void {
+    this.currentUser = null;
+    localStorage.removeItem('furnicolor_user');
+  }
+
+  async verifyLogin(username: string, password: string): Promise<AppUser | null> {
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('*')
+      .eq('username', username)
+      .eq('password', password)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    this.currentUser = data;
+    localStorage.setItem('furnicolor_user', JSON.stringify(data));
+    return data;
+  }
+
+  // Admin: Get all users
+  async getAllUsers(): Promise<AppUser[]> {
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  // Admin: Create user
+  async createUser(user: Partial<AppUser>): Promise<AppUser> {
+    const { data, error } = await supabase
+      .from('app_users')
+      .insert([{
+        username: user.username,
+        password: user.password,
+        credits: user.credits || 0,
+        is_admin: user.is_admin || false
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Admin: Update user credits
+  async updateUserCredits(userId: string, credits: number): Promise<void> {
+    const { error } = await supabase
+      .from('app_users')
+      .update({ credits })
+      .eq('id', userId);
+
+    if (error) throw error;
+  }
+
+  // Admin: Delete user
+  async deleteUser(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('app_users')
+      .delete()
+      .eq('id', userId);
+    
+    if (error) throw error;
+  }
+
+  // User: Deduct credit
+  async deductCredit(userId: string): Promise<number> {
+    // 1. Get current credits
+    const { data: user, error: fetchError } = await supabase
+      .from('app_users')
+      .select('credits')
+      .eq('id', userId)
+      .single();
+    
+    if (fetchError || !user) throw new Error('User not found');
+    
+    if (user.credits < 1) {
+      throw new Error('Insufficient credits');
+    }
+
+    // 2. Deduct
+    const newCredits = user.credits - 1;
+    const { error: updateError } = await supabase
+      .from('app_users')
+      .update({ credits: newCredits })
+      .eq('id', userId);
+
+    if (updateError) throw updateError;
+    
+    // Update local session if it's the current user
+    if (this.currentUser && this.currentUser.id === userId) {
+      this.currentUser.credits = newCredits;
+      localStorage.setItem('furnicolor_user', JSON.stringify(this.currentUser));
+    }
+
+    return newCredits;
   }
 
   async updatePassword(newPassword: string): Promise<void> {
-    const auth = JSON.parse(localStorage.getItem(AUTH_KEY) || '{}');
-    auth.password = newPassword;
-    localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+    if (!this.currentUser) return;
+    
+    const { error } = await supabase
+      .from('app_users')
+      .update({ password: newPassword })
+      .eq('id', this.currentUser.id);
+
+    if (error) throw error;
+    
+    this.currentUser.password = newPassword;
+    localStorage.setItem('furnicolor_user', JSON.stringify(this.currentUser));
   }
+
 
   // 获取所有分类
   async getCategories(): Promise<{ id: string; name: string }[]> {
