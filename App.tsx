@@ -56,6 +56,26 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [modelMode, setModelMode] = useState<'controlnet' | 'imagen3' | 'nanobanana'>('controlnet');
+  const [enabledModels, setEnabledModels] = useState({
+    controlnet: true,
+    nanobanana: true
+  });
+
+  useEffect(() => {
+    // Load enabled models from localStorage
+    const savedModels = localStorage.getItem('enabledModels');
+    if (savedModels) {
+      setEnabledModels(JSON.parse(savedModels));
+    }
+  }, []);
+
+  const toggleModel = (model: 'controlnet' | 'nanobanana') => {
+    setEnabledModels(prev => {
+      const next = { ...prev, [model]: !prev[model] };
+      localStorage.setItem('enabledModels', JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -490,9 +510,49 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col gap-6 animate-in slide-in-from-right duration-500 pb-20">
           {/* 修改密码区块 */}
           <div className="bg-indigo-600 p-6 rounded-[2rem] shadow-lg text-white">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold flex items-center gap-2">
-                <KeyRound size={18} /> 后台设置
+                <Settings size={18} /> 全局配置
+              </h3>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+               <div className="flex items-center justify-between bg-white/10 p-4 rounded-2xl">
+                 <div className="flex items-center gap-3">
+                   <div className="p-2 bg-white/10 rounded-lg"><Layers size={18} /></div>
+                   <div className="flex flex-col">
+                     <span className="text-sm font-bold">原图改色 (ControlNet)</span>
+                     <span className="text-[10px] opacity-60">保留结构，改变材质</span>
+                   </div>
+                 </div>
+                 <button 
+                   onClick={() => toggleModel('controlnet')}
+                   className={`w-12 h-7 rounded-full transition-colors relative ${enabledModels.controlnet ? 'bg-white' : 'bg-white/20'}`}
+                 >
+                   <div className={`absolute top-1 w-5 h-5 rounded-full transition-all ${enabledModels.controlnet ? 'left-6 bg-indigo-600' : 'left-1 bg-white'}`} />
+                 </button>
+               </div>
+
+               <div className="flex items-center justify-between bg-white/10 p-4 rounded-2xl">
+                 <div className="flex items-center gap-3">
+                   <div className="p-2 bg-white/10 rounded-lg"><ImageIcon size={18} /></div>
+                   <div className="flex flex-col">
+                     <span className="text-sm font-bold">图像条件生成 (Nano)</span>
+                     <span className="text-[10px] opacity-60">参考结构，自由重绘</span>
+                   </div>
+                 </div>
+                 <button 
+                   onClick={() => toggleModel('nanobanana')}
+                   className={`w-12 h-7 rounded-full transition-colors relative ${enabledModels.nanobanana ? 'bg-white' : 'bg-white/20'}`}
+                 >
+                   <div className={`absolute top-1 w-5 h-5 rounded-full transition-all ${enabledModels.nanobanana ? 'left-6 bg-indigo-600' : 'left-1 bg-white'}`} />
+                 </button>
+               </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-2 border-t border-white/20 pt-4">
+              <h3 className="font-bold flex items-center gap-2">
+                <KeyRound size={18} /> 管理员密码
               </h3>
               <button 
                 onClick={() => setShowPasswordChange(!showPasswordChange)}
@@ -804,6 +864,7 @@ const App: React.FC = () => {
                   className={`px-4 py-2.5 rounded-2xl text-[13px] font-bold transition-all border flex items-center gap-2 ${
                     modelMode === 'controlnet' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100 shadow-sm'
                   }`}
+                  style={{ display: enabledModels.controlnet ? 'flex' : 'none' }}
                 >
                   <Layers size={16} />
                   原图改色
@@ -813,18 +874,10 @@ const App: React.FC = () => {
                   className={`px-4 py-2.5 rounded-2xl text-[13px] font-bold transition-all border flex items-center gap-2 ${
                     modelMode === 'nanobanana' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100 shadow-sm'
                   }`}
+                  style={{ display: enabledModels.nanobanana ? 'flex' : 'none' }}
                 >
                   <ImageIcon size={16} />
                   图像条件生成
-                </button>
-                <button
-                  onClick={() => setModelMode('imagen3')}
-                  className={`px-4 py-2.5 rounded-2xl text-[13px] font-bold transition-all border flex items-center gap-2 ${
-                    modelMode === 'imagen3' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100 shadow-sm'
-                  }`}
-                >
-                  <Sparkles size={16} />
-                  文本生成
                 </button>
               </div>
             </div>
