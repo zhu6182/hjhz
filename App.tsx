@@ -44,6 +44,7 @@ const App: React.FC = () => {
 
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
+  const [adminTab, setAdminTab] = useState<'users' | 'colors' | 'settings'>('users');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loginFields, setLoginFields] = useState({ username: '', password: '' });
@@ -479,6 +480,7 @@ const App: React.FC = () => {
         state.step === 'MANAGE' ? '后台管理' : 
         state.step === 'LOGIN' ? '身份验证' : undefined
       }
+      fullWidth={state.step === 'LOGIN' || state.step === 'MANAGE'}
     >
       {state.error && (
         <div className="mb-4 p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl text-xs font-medium animate-in fade-in slide-in-from-top">
@@ -555,444 +557,498 @@ const App: React.FC = () => {
       )}
 
       {state.step === 'LOGIN' && (
-        <div className="flex-1 flex flex-col justify-center animate-in fade-in zoom-in duration-500 max-w-xs mx-auto w-full pb-20">
-          <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100">
-            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 mx-auto">
-              <Lock size={24} />
+        <div className="flex-1 flex flex-col md:flex-row h-full">
+          {/* Desktop Left Side - Banner */}
+          <div className="hidden md:flex md:w-1/2 lg:w-3/5 bg-slate-900 relative items-center justify-center overflow-hidden">
+             <div className="absolute inset-0 opacity-40 bg-[url('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center"></div>
+             <div className="relative z-10 text-center p-10 text-white">
+                <div className="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center text-white mb-6 mx-auto shadow-2xl shadow-indigo-900/50">
+                  <Palette size={40} />
+                </div>
+                <h1 className="text-4xl font-bold mb-4">好家改造</h1>
+                <p className="text-indigo-200 text-lg max-w-md mx-auto">AI 驱动的家具焕新平台，让设计触手可及。</p>
+             </div>
+          </div>
+
+          {/* Login Form Container */}
+          <div className="flex-1 flex flex-col justify-center animate-in fade-in zoom-in duration-500 max-w-md mx-auto w-full pb-20 md:pb-0 md:px-12 md:max-w-xl">
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-100 md:shadow-none md:border-none">
+              <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-6 mx-auto md:mx-0">
+                <Lock size={24} />
+              </div>
+              <h3 className="text-xl font-bold text-center md:text-left text-slate-900 mb-2">欢迎登录</h3>
+              <p className="text-xs text-slate-400 text-center md:text-left mb-8 font-medium">好家改造 · 家具焕新平台</p>
+              
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="relative">
+                  <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="text"
+                    required
+                    placeholder="账号"
+                    value={loginFields.username}
+                    onChange={e => setLoginFields(prev => ({ ...prev, username: e.target.value }))}
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+                <div className="relative">
+                  <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="password"
+                    required
+                    placeholder="密码"
+                    value={loginFields.password}
+                    onChange={e => setLoginFields(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+                <button 
+                  type="submit"
+                  disabled={isLoggingIn}
+                  className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {isLoggingIn ? <RefreshCcw className="animate-spin" size={18} /> : '立即登录'}
+                </button>
+              </form>
             </div>
-            <h3 className="text-xl font-bold text-center text-slate-900 mb-2">欢迎登录</h3>
-            <p className="text-xs text-slate-400 text-center mb-8 font-medium">好家改造 · 家具焕新平台</p>
-            
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="relative">
-                <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="text"
-                  required
-                  placeholder="账号"
-                  value={loginFields.username}
-                  onChange={e => setLoginFields(prev => ({ ...prev, username: e.target.value }))}
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
-              </div>
-              <div className="relative">
-                <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="password"
-                  required
-                  placeholder="密码"
-                  value={loginFields.password}
-                  onChange={e => setLoginFields(prev => ({ ...prev, password: e.target.value }))}
-                  className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
-              </div>
-              <button 
-                type="submit"
-                disabled={isLoggingIn}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                {isLoggingIn ? <RefreshCcw className="animate-spin" size={18} /> : '立即登录'}
-              </button>
-            </form>
           </div>
         </div>
       )}
 
       {state.step === 'MANAGE' && (
-        <div className="flex-1 flex flex-col gap-6 animate-in slide-in-from-right duration-500 pb-20">
+        <div className="flex-1 flex flex-col md:flex-row h-full -mx-6 -my-4 md:mx-0 md:my-0 min-h-[80vh]">
           
-          <div className="flex justify-between items-center mb-2">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">后台管理</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                欢迎回来，{currentUser?.username} 
-                {currentUser?.is_admin && <span className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded text-[10px] font-bold">管理员</span>}
-              </p>
-            </div>
-            <button 
-              onClick={handleLogout}
-              className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
-              title="退出登录"
-            >
-              <LogOut size={20} />
-            </button>
+          {/* Desktop Sidebar */}
+          <div className="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col p-6 gap-2 flex-shrink-0">
+             <div className="mb-8 px-2">
+               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                 <Settings className="text-indigo-600" /> 后台管理
+               </h2>
+               <p className="text-xs text-slate-500 mt-1 pl-7">欢迎，{currentUser?.username}</p>
+             </div>
+             
+             {currentUser?.is_admin && (
+               <button 
+                 onClick={() => setAdminTab('users')} 
+                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${adminTab === 'users' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
+               >
+                 <Users size={18} /> 用户管理
+               </button>
+             )}
+             
+             <button 
+               onClick={() => setAdminTab('colors')} 
+               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${adminTab === 'colors' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
+             >
+               <Palette size={18} /> 色卡产品
+             </button>
+             
+             <button 
+               onClick={() => setAdminTab('settings')} 
+               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${adminTab === 'settings' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}
+             >
+               <KeyRound size={18} /> 系统设置
+             </button>
+             
+             <div className="mt-auto">
+               <button 
+                 onClick={handleLogout} 
+                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-all w-full"
+               >
+                 <LogOut size={18} /> 退出登录
+               </button>
+             </div>
           </div>
 
-          {/* 只有管理员在PC端才显示的用户管理区块 */}
-          {currentUser?.is_admin && (
-             <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white">
-               <div className="flex items-center justify-between mb-6">
-                 <h3 className="font-bold flex items-center gap-2">
-                   <Users size={18} /> 用户管理
-                 </h3>
-                 <button 
-                   onClick={() => setShowUserModal(true)}
-                   className="text-[11px] font-bold bg-indigo-600 px-4 py-1.5 rounded-full active:scale-95 transition-transform flex items-center gap-1"
-                 >
-                   <Plus size={14} /> 新增用户
-                 </button>
-               </div>
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8F9FA] md:bg-slate-50/30">
+            
+            {/* Mobile Header */}
+            <div className="md:hidden flex justify-between items-center p-6 pb-2">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">后台管理</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  欢迎回来，{currentUser?.username} 
+                  {currentUser?.is_admin && <span className="ml-2 bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded text-[10px] font-bold">管理员</span>}
+                </p>
+              </div>
+              <button 
+                onClick={handleLogout}
+                className="p-2 bg-rose-50 text-rose-500 rounded-xl hover:bg-rose-100 transition-colors"
+                title="退出登录"
+              >
+                <LogOut size={20} />
+              </button>
+            </div>
 
-               {showUserModal && (
-                 <div className="bg-white/10 p-4 rounded-2xl mb-6 animate-in slide-in-from-top">
-                   <div className="grid grid-cols-2 gap-3 mb-3">
-                     <input 
-                       type="text" 
-                       placeholder="用户名" 
-                       value={newUserInfo.username}
-                       onChange={e => setNewUserInfo({...newUserInfo, username: e.target.value})}
-                       className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:bg-black/40"
-                     />
-                     <input 
-                       type="text" 
-                       placeholder="密码" 
-                       value={newUserInfo.password}
-                       onChange={e => setNewUserInfo({...newUserInfo, password: e.target.value})}
-                       className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:bg-black/40"
-                     />
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 md:p-10">
+              
+              {/* Users Section (Visible on Desktop Tab 'users' OR Mobile if Admin) */}
+              {(currentUser?.is_admin && (adminTab === 'users' || window.innerWidth < 768)) && (
+                 <div className={`space-y-4 ${adminTab !== 'users' ? 'md:hidden' : ''}`}>
+                   <div className="flex items-center justify-between">
+                     <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                       <Users size={20} className="text-indigo-600" /> 用户管理
+                     </h3>
+                     <button 
+                       onClick={() => setShowUserModal(true)}
+                       className="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-xl active:scale-95 transition-transform flex items-center gap-1 shadow-lg shadow-indigo-200"
+                     >
+                       <Plus size={14} /> 新增用户
+                     </button>
                    </div>
-                   <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2 flex-1">
-                        <span className="text-xs text-white/60">初始点数:</span>
-                        <input 
-                          type="number" 
-                          value={newUserInfo.credits}
-                          onChange={e => setNewUserInfo({...newUserInfo, credits: parseInt(e.target.value) || 0})}
-                          className="bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-20 focus:outline-none focus:bg-black/40"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => setShowUserModal(false)} className="px-3 py-2 text-xs text-white/60 hover:text-white">取消</button>
-                        <button onClick={handleCreateUser} className="px-4 py-2 bg-indigo-500 rounded-xl text-xs font-bold">保存</button>
-                      </div>
-                   </div>
-                 </div>
-               )}
 
-               <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                 {usersList.map(user => (
-                   <div key={user.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl hover:bg-white/10 transition-colors">
-                     <div className="flex items-center gap-3">
-                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${user.is_admin ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
-                         {user.username.charAt(0).toUpperCase()}
+                   {showUserModal && (
+                     <div className="bg-white p-6 rounded-2xl shadow-xl border border-indigo-100 animate-in slide-in-from-top">
+                       <h4 className="font-bold text-slate-800 mb-4">添加新用户</h4>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                         <input 
+                           type="text" 
+                           placeholder="用户名" 
+                           value={newUserInfo.username}
+                           onChange={e => setNewUserInfo({...newUserInfo, username: e.target.value})}
+                           className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                         />
+                         <input 
+                           type="text" 
+                           placeholder="密码" 
+                           value={newUserInfo.password}
+                           onChange={e => setNewUserInfo({...newUserInfo, password: e.target.value})}
+                           className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                         />
+                         <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-500 whitespace-nowrap">初始点数:</span>
+                            <input 
+                              type="number" 
+                              value={newUserInfo.credits}
+                              onChange={e => setNewUserInfo({...newUserInfo, credits: parseInt(e.target.value) || 0})}
+                              className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm w-full focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            />
+                         </div>
                        </div>
-                       <div>
-                         <p className="text-sm font-bold">{user.username}</p>
-                         <p className="text-[10px] text-white/40">剩余点数: {user.credits}</p>
+                       <div className="flex justify-end gap-3">
+                          <button onClick={() => setShowUserModal(false)} className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-slate-600">取消</button>
+                          <button onClick={handleCreateUser} className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md">保存用户</button>
                        </div>
                      </div>
-                     {!user.is_admin && (
-                       <div className="flex items-center gap-2">
+                   )}
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                     {usersList.map(user => (
+                       <div key={user.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between group hover:shadow-md transition-shadow">
+                         <div className="flex items-center gap-4 mb-4">
+                           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${user.is_admin ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
+                             {user.username.charAt(0).toUpperCase()}
+                           </div>
+                           <div>
+                             <p className="font-bold text-slate-900">{user.username}</p>
+                             <p className="text-xs text-slate-400">剩余点数: <span className="text-emerald-500 font-bold">{user.credits}</span></p>
+                           </div>
+                         </div>
+                         {!user.is_admin && (
+                           <div className="flex items-center gap-2 pt-4 border-t border-slate-50">
+                             <button 
+                               onClick={() => handleRecharge(user, 10)}
+                               className="flex-1 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors"
+                             >
+                               +10次
+                             </button>
+                             <button 
+                               onClick={() => handleRecharge(user, 50)}
+                               className="flex-1 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-100 transition-colors"
+                             >
+                               +50次
+                             </button>
+                           </div>
+                         )}
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+              )}
+
+              {/* Settings Section (Visible on Desktop Tab 'settings' OR Mobile) */}
+              {((adminTab === 'settings' || window.innerWidth < 768)) && (
+                <div className={`space-y-4 ${adminTab !== 'settings' ? 'md:hidden' : ''}`}>
+                  <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                    <Settings size={20} className="text-indigo-600" /> 全局配置
+                  </h3>
+                  
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
+                         <div className="flex items-center gap-3">
+                           <div className="p-2 bg-white rounded-lg shadow-sm"><Layers size={18} className="text-indigo-500" /></div>
+                           <div className="flex flex-col">
+                             <span className="text-sm font-bold text-slate-800">原图改色 (ControlNet)</span>
+                             <span className="text-[10px] text-slate-400">保留结构，改变材质</span>
+                           </div>
+                         </div>
                          <button 
-                           onClick={() => handleRecharge(user, 10)}
-                           className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold hover:bg-emerald-500/30"
+                           onClick={() => toggleModel('controlnet')}
+                           className={`w-12 h-7 rounded-full transition-colors relative ${enabledModels.controlnet ? 'bg-indigo-600' : 'bg-slate-200'}`}
                          >
-                           +10次
-                         </button>
-                         <button 
-                           onClick={() => handleRecharge(user, 50)}
-                           className="px-2 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold hover:bg-emerald-500/30"
-                         >
-                           +50次
+                           <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${enabledModels.controlnet ? 'left-6' : 'left-1'}`} />
                          </button>
                        </div>
-                     )}
-                   </div>
-                 ))}
-               </div>
-             </div>
-          )}
 
-          {/* 修改密码区块 */}
-          <div className="bg-indigo-600 p-6 rounded-[2rem] shadow-lg text-white">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold flex items-center gap-2">
-                <Settings size={18} /> 全局配置
-              </h3>
-            </div>
-            
-            <div className="space-y-4 mb-6">
-               <div className="flex items-center justify-between bg-white/10 p-4 rounded-2xl">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 bg-white/10 rounded-lg"><Layers size={18} /></div>
-                   <div className="flex flex-col">
-                     <span className="text-sm font-bold">原图改色 (ControlNet)</span>
-                     <span className="text-[10px] opacity-60">保留结构，改变材质</span>
-                   </div>
-                 </div>
-                 <button 
-                   onClick={() => toggleModel('controlnet')}
-                   className={`w-12 h-7 rounded-full transition-colors relative ${enabledModels.controlnet ? 'bg-white' : 'bg-white/20'}`}
-                 >
-                   <div className={`absolute top-1 w-5 h-5 rounded-full transition-all ${enabledModels.controlnet ? 'left-6 bg-indigo-600' : 'left-1 bg-white'}`} />
-                 </button>
-               </div>
-
-               <div className="flex items-center justify-between bg-white/10 p-4 rounded-2xl">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 bg-white/10 rounded-lg"><ImageIcon size={18} /></div>
-                   <div className="flex flex-col">
-                     <span className="text-sm font-bold">图像条件生成 (Nano)</span>
-                     <span className="text-[10px] opacity-60">参考结构，自由重绘</span>
-                   </div>
-                 </div>
-                 <button 
-                   onClick={() => toggleModel('nanobanana')}
-                   className={`w-12 h-7 rounded-full transition-colors relative ${enabledModels.nanobanana ? 'bg-white' : 'bg-white/20'}`}
-                 >
-                   <div className={`absolute top-1 w-5 h-5 rounded-full transition-all ${enabledModels.nanobanana ? 'left-6 bg-indigo-600' : 'left-1 bg-white'}`} />
-                 </button>
-               </div>
-            </div>
-
-            <div className="flex items-center justify-between mb-2 border-t border-white/20 pt-4">
-              <h3 className="font-bold flex items-center gap-2">
-                <KeyRound size={18} /> 管理员密码
-              </h3>
-              <button 
-                onClick={() => setShowPasswordChange(!showPasswordChange)}
-                className="text-[11px] font-bold bg-white/20 px-3 py-1 rounded-full active:scale-95 transition-transform"
-              >
-                {showPasswordChange ? '取消修改' : '修改密码'}
-              </button>
-            </div>
-            {showPasswordChange && (
-              <div className="mt-4 flex gap-2 animate-in slide-in-from-top">
-                <input 
-                  type="password"
-                  placeholder="新密码"
-                  value={newBackendPassword}
-                  onChange={e => setNewBackendPassword(e.target.value)}
-                  className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-xs placeholder:text-white/50 focus:outline-none focus:bg-white/20"
-                />
-                <button 
-                  onClick={handleChangePassword}
-                  className="px-4 py-2 bg-white text-indigo-600 rounded-xl text-xs font-bold active:scale-95"
-                >
-                  确定
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* 分类管理区块 */}
-          <div className="bg-slate-800 p-6 rounded-[2rem] shadow-lg text-white">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold flex items-center gap-2">
-                <Layers size={18} /> 分类管理
-              </h3>
-              <button 
-                onClick={() => setShowCategoryManager(!showCategoryManager)}
-                className="text-[11px] font-bold bg-white/20 px-3 py-1 rounded-full active:scale-95 transition-transform"
-              >
-                {showCategoryManager ? '收起' : '管理'}
-              </button>
-            </div>
-            
-            {showCategoryManager && (
-              <div className="space-y-4 animate-in slide-in-from-top">
-                <div className="flex gap-2">
-                  <input 
-                    type="text"
-                    placeholder="新分类名称"
-                    value={newCategoryName}
-                    onChange={e => setNewCategoryName(e.target.value)}
-                    className="flex-1 px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-xs placeholder:text-white/50 focus:outline-none focus:bg-white/20"
-                  />
-                  <button 
-                    onClick={handleAddCategory}
-                    className="px-4 py-2 bg-indigo-500 text-white rounded-xl text-xs font-bold active:scale-95"
-                  >
-                    添加
-                  </button>
-                </div>
-                
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                  {categories.map(cat => (
-                    <div key={cat.id} className="bg-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs">
-                      <span>{cat.name}</span>
-                      <button 
-                        onClick={() => handleDeleteCategory(cat.id)}
-                        className="text-white/40 hover:text-rose-400 transition-colors"
-                      >
-                        <X size={12} />
-                      </button>
+                       <div className="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-100">
+                         <div className="flex items-center gap-3">
+                           <div className="p-2 bg-white rounded-lg shadow-sm"><ImageIcon size={18} className="text-indigo-500" /></div>
+                           <div className="flex flex-col">
+                             <span className="text-sm font-bold text-slate-800">图像条件生成 (Nano)</span>
+                             <span className="text-[10px] text-slate-400">参考结构，自由重绘</span>
+                           </div>
+                         </div>
+                         <button 
+                           onClick={() => toggleModel('nanobanana')}
+                           className={`w-12 h-7 rounded-full transition-colors relative ${enabledModels.nanobanana ? 'bg-indigo-600' : 'bg-slate-200'}`}
+                         >
+                           <div className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${enabledModels.nanobanana ? 'left-6' : 'left-1'}`} />
+                         </button>
+                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
-          <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-               <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                 {editingId ? <Edit3 size={18} className="text-indigo-600" /> : <Plus size={18} className="text-indigo-600" />} 
-                 {editingId ? '编辑色卡' : '新增产品'}
-               </h3>
-               {editingId && (
-                 <button onClick={() => {
-                   setEditingId(null);
-                   setNewColor({ name: '', hex: '#4F46E5', category: activeCategory, finish: 'matte', imageUrl: undefined });
-                 }} className="text-xs font-bold text-slate-400">取消</button>
-               )}
-            </div>
-            
-            <div className="space-y-5">
-              <div className="flex gap-4">
-                 <div 
-                   onClick={() => fileInputRef.current?.click()}
-                   className="w-24 h-24 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors group overflow-hidden relative"
-                 >
-                   {newColor.imageUrl ? (
-                     <img src={newColor.imageUrl} className="w-full h-full object-cover" />
-                   ) : (
-                     <>
-                        <ImageIcon size={20} className="text-slate-300 group-hover:text-indigo-400" />
-                        <span className="text-[10px] font-bold text-slate-400 mt-1">上传纹理</span>
-                     </>
-                   )}
-                   <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleSwatchImageUpload} 
-                   />
-                 </div>
-                 <div className="flex-1 space-y-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">色号名称</label>
-                      <input 
-                        type="text" 
-                        value={newColor.name}
-                        onChange={e => setNewColor({...newColor, name: e.target.value})}
-                        placeholder="例如：胡桃木色"
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">系列分类</label>
-                      <select 
-                        value={newColor.category}
-                        onChange={e => {
-                          const cat = e.target.value;
-                          setNewColor({...newColor, category: cat});
-                          setActiveCategory(cat);
-                        }}
-                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold focus:outline-none"
-                      >
-                        {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-                      </select>
-                    </div>
-                 </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">核心色值 (Hex)</label>
-                <div className="flex gap-3">
-                  <input 
-                    type="color" 
-                    value={newColor.hex}
-                    onChange={e => setNewColor({...newColor, hex: e.target.value})}
-                    className="w-10 h-10 rounded-xl cursor-pointer border-none p-0 bg-transparent"
-                  />
-                  <input 
-                    type="text" 
-                    value={newColor.hex}
-                    onChange={e => setNewColor({...newColor, hex: e.target.value})}
-                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-mono focus:outline-none"
-                  />
-                </div>
-              </div>
-              
-              <button 
-                onClick={handleSaveColor}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all"
-              >
-                {editingId ? '保存修改' : '保存到色卡库'}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-             <div className="flex items-center justify-between px-2">
-                <h3 className="font-bold text-slate-800">色卡仓库 ({state.palettes.length})</h3>
-                <Filter size={16} className="text-slate-400" />
-             </div>
-
-             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar px-2">
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveCategory(cat.name)}
-                    className={`px-3 py-2 rounded-xl text-[11px] font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
-                      activeCategory === cat.name 
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
-                      : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-100'
-                    }`}
-                  >
-                    <span className={activeCategory === cat.name ? 'text-indigo-400' : 'text-slate-300'}>
-                      {CATEGORY_ICONS[cat.name] ? (
-                        React.cloneElement(CATEGORY_ICONS[cat.name] as React.ReactElement, { size: 14 })
-                      ) : (
-                        <Layers size={14} />
+                    <div className="pt-6 border-t border-slate-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                          <KeyRound size={16} /> 管理员密码
+                        </h4>
+                        <button 
+                          onClick={() => setShowPasswordChange(!showPasswordChange)}
+                          className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded-lg transition-colors"
+                        >
+                          {showPasswordChange ? '取消修改' : '修改密码'}
+                        </button>
+                      </div>
+                      {showPasswordChange && (
+                        <div className="flex gap-2 animate-in slide-in-from-top">
+                          <input 
+                            type="password"
+                            placeholder="输入新密码"
+                            value={newBackendPassword}
+                            onChange={e => setNewBackendPassword(e.target.value)}
+                            className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                          />
+                          <button 
+                            onClick={handleChangePassword}
+                            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 active:scale-95"
+                          >
+                            确定
+                          </button>
+                        </div>
                       )}
-                    </span>
-                    {cat.name}
-                  </button>
-                ))}
-              </div>
-
-            <div className="grid grid-cols-1 gap-3">
-              {filteredPalettes.length > 0 ? (
-                filteredPalettes.map(palette => (
-                  <div key={palette.id} className="bg-white p-4 rounded-2xl flex items-center justify-between border border-slate-50 shadow-sm group animate-in fade-in zoom-in duration-300">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl shadow-inner border border-slate-100 overflow-hidden relative">
-                        {palette.imageUrl ? (
-                          <img src={palette.imageUrl} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full" style={{ backgroundColor: palette.hex }}></div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-slate-800 text-sm">{palette.name}</p>
-                        </div>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <span className="text-indigo-400">
-                            {CATEGORY_ICONS[palette.category] ? (
-                              React.cloneElement(CATEGORY_ICONS[palette.category] as React.ReactElement, { size: 10 })
-                            ) : (
-                              <Layers size={10} />
-                            )}
-                          </span>
-                          <span className="text-indigo-500 text-[8px] font-bold uppercase">{palette.category}</span>
-                        </div>
-                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                  </div>
+                </div>
+              )}
+
+              {/* Colors Section (Visible on Desktop Tab 'colors' OR Mobile) */}
+              {((adminTab === 'colors' || window.innerWidth < 768)) && (
+                <div className={`space-y-4 ${adminTab !== 'colors' ? 'md:hidden' : ''}`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
+                      <Palette size={20} className="text-indigo-600" /> 色卡管理
+                    </h3>
+                    <div className="flex gap-2">
                       <button 
-                        onClick={() => handleEditClick(palette)}
-                        className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+                        onClick={() => setShowCategoryManager(!showCategoryManager)}
+                        className="text-xs font-bold bg-white text-slate-600 border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
                       >
-                        <Edit3 size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteColor(palette.id)}
-                        className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
-                      >
-                        <Trash2 size={18} />
+                        {showCategoryManager ? '收起分类' : '分类管理'}
                       </button>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="py-12 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200">
-                  <p className="text-xs text-slate-400 font-medium">该分类暂无色卡，请在上方新增</p>
+                  
+                  {/* Category Manager */}
+                  {showCategoryManager && (
+                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 animate-in slide-in-from-top mb-4">
+                      <div className="flex gap-2 mb-4">
+                        <input 
+                          type="text"
+                          placeholder="新分类名称"
+                          value={newCategoryName}
+                          onChange={e => setNewCategoryName(e.target.value)}
+                          className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        />
+                        <button 
+                          onClick={handleAddCategory}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold"
+                        >
+                          添加
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                        {categories.map(cat => (
+                          <div key={cat.id} className="bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs font-medium text-slate-600">
+                            <span>{cat.name}</span>
+                            <button 
+                              onClick={() => handleDeleteCategory(cat.id)}
+                              className="text-slate-400 hover:text-rose-500 transition-colors"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add/Edit Color Form */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div className="flex items-center justify-between mb-4">
+                       <h4 className="font-bold text-slate-800 text-sm">
+                         {editingId ? '编辑色卡' : '新增色卡'}
+                       </h4>
+                       {editingId && (
+                         <button onClick={() => {
+                           setEditingId(null);
+                           setNewColor({ name: '', hex: '#4F46E5', category: activeCategory, finish: 'matte', imageUrl: undefined });
+                         }} className="text-xs font-bold text-slate-400 hover:text-slate-600">取消编辑</button>
+                       )}
+                    </div>
+                    
+                    <div className="flex flex-col md:flex-row gap-6">
+                       <div 
+                         onClick={() => fileInputRef.current?.click()}
+                         className="w-full md:w-32 h-32 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors group overflow-hidden relative flex-shrink-0"
+                       >
+                         {newColor.imageUrl ? (
+                           <img src={newColor.imageUrl} className="w-full h-full object-cover" />
+                         ) : (
+                           <>
+                              <ImageIcon size={24} className="text-slate-300 group-hover:text-indigo-400" />
+                              <span className="text-xs font-bold text-slate-400 mt-2">上传纹理</span>
+                           </>
+                         )}
+                         <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={handleSwatchImageUpload} 
+                         />
+                       </div>
+                       
+                       <div className="flex-1 space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase">色号名称</label>
+                              <input 
+                                type="text" 
+                                value={newColor.name}
+                                onChange={e => setNewColor({...newColor, name: e.target.value})}
+                                placeholder="例如：胡桃木色"
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase">系列分类</label>
+                              <select 
+                                value={newColor.category}
+                                onChange={e => {
+                                  const cat = e.target.value;
+                                  setNewColor({...newColor, category: cat});
+                                  setActiveCategory(cat);
+                                }}
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                              >
+                                {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase">核心色值 (Hex)</label>
+                            <div className="flex gap-3">
+                              <input 
+                                type="color" 
+                                value={newColor.hex}
+                                onChange={e => setNewColor({...newColor, hex: e.target.value})}
+                                className="w-10 h-10 rounded-xl cursor-pointer border-none p-0 bg-transparent"
+                              />
+                              <input 
+                                type="text" 
+                                value={newColor.hex}
+                                onChange={e => setNewColor({...newColor, hex: e.target.value})}
+                                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                              />
+                            </div>
+                          </div>
+                          
+                          <button 
+                            onClick={handleSaveColor}
+                            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 active:scale-95 transition-all hover:bg-indigo-700"
+                          >
+                            {editingId ? '保存修改' : '保存到色卡库'}
+                          </button>
+                       </div>
+                    </div>
+                  </div>
+
+                  {/* Palette List */}
+                  <div className="space-y-4">
+                     <div className="flex items-center justify-between px-1">
+                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                          {categories.map(cat => (
+                            <button
+                              key={cat.id}
+                              onClick={() => setActiveCategory(cat.name)}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 ${
+                                activeCategory === cat.name 
+                                ? 'bg-slate-800 text-white border-slate-800' 
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-200'
+                              }`}
+                            >
+                              {cat.name}
+                            </button>
+                          ))}
+                        </div>
+                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {filteredPalettes.length > 0 ? (
+                        filteredPalettes.map(palette => (
+                          <div key={palette.id} className="bg-white p-3 rounded-xl flex items-center justify-between border border-slate-100 shadow-sm group hover:border-indigo-100 hover:shadow-md transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg shadow-inner border border-slate-100 overflow-hidden relative">
+                                {palette.imageUrl ? (
+                                  <img src={palette.imageUrl} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full" style={{ backgroundColor: palette.hex }}></div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-800 text-sm">{palette.name}</p>
+                                <span className="text-slate-400 text-[10px] uppercase">{palette.category}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <button 
+                                onClick={() => handleEditClick(palette)}
+                                className="p-2 text-slate-300 hover:text-indigo-500 transition-colors"
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteColor(palette.id)}
+                                className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                          <p className="text-xs text-slate-400 font-medium">该分类暂无色卡</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
+
             </div>
           </div>
         </div>

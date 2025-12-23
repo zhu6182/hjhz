@@ -7,13 +7,14 @@ interface LayoutProps {
   onBack?: () => void;
   showBack?: boolean;
   title?: string;
+  fullWidth?: boolean;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, onBack, showBack, title }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, onBack, showBack, title, fullWidth }) => {
   return (
-    <div className="h-screen flex flex-col bg-[#F8F9FA] max-w-md mx-auto relative overflow-hidden shadow-2xl border-x border-slate-100">
+    <div className={`h-screen flex flex-col bg-[#F8F9FA] mx-auto relative overflow-hidden shadow-2xl border-x border-slate-100 ${fullWidth ? 'w-full max-w-none' : 'max-w-md'}`}>
       {/* Dynamic Header */}
-      <header className="px-6 pt-12 pb-4 glass sticky top-0 z-[60] flex items-center justify-between border-b border-white/40">
+      <header className={`px-6 pt-4 pb-4 glass sticky top-0 z-[60] flex items-center justify-between border-b border-white/40 ${fullWidth ? 'pt-4' : 'pt-12'}`}>
         <div className="flex items-center gap-3">
           {showBack ? (
             <button 
